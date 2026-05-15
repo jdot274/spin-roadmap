@@ -1,0 +1,221 @@
+FULL CHAT EXPORT - Claude Session
+Date: May 14, 2026
+Sessions: OneNote Recovery + SPIN Insights + Deep Dive
+==============================================================
+
+PART 1: WHAT HAPPENED THIS SESSION
+==============================================================
+
+1. Tried Microsoft 365 MCP - needs reconnect (personal account)
+2. Used Desktop Commander to locate OneNote on Windows (JOEYROGG14)
+3. Found OneNote backup: C:/Users/joeyw/AppData/Local/Microsoft/OneNote/16.0/Backup/
+   Files: Quick Notes (On 5-13-2026 - 2).one + Quick Notes (On 5-14-2026).one
+4. Parsed binary .one files via Python to extract 4412 lines of text
+5. Searched Claude chat history for SPIN best-insight conversation
+   -> Not found in claude.ai (likely a Cursor session)
+6. Reconstructed the 4 SPIN insights from OneNote content
+7. Deep-read all 4412 lines for technical insights
+8. Saved insights to Claude memory (entries 6-9)
+9. Saved files to Desktop
+
+==============================================================
+PART 2: ALL INSIGHTS FROM THIS SESSION
+==============================================================
+
+--- MAY 13 ONENOTE: 4 SPIN INSIGHTS ---
+
+#1 CHEAP SOFT-BODY ILLUSION
+Rigid collision + material wave deformation = fake softness.
+No Chaos physics needed. Unblocks visual without simulation cost.
+
+#2 FULL SCENE AS ONE MATERIAL VOLUME [probable best insight]
+Arena glow/fog/post-process/F0-F90/gradients unified into ONE material system.
+Mid-session realization phrasing: "shouldnt there be one that is a full scene material volume..."
+
+#3 UNIVERSAL M_META_CUBE
+One master material on every actor. Triplanar via Nanite. Unifies visual language.
+
+#4 SPIN AS ONE AGENT PROGRAM
+All runtime = one continuous cooperating-agent system.
+Agents: master, lyra, detector, ingest, scoring, gating, learning, heartbeat.
+Deterministic homeostasis + gated self-learning.
+
+--- MAY 13 ONENOTE: DEEP TECHNICAL INSIGHTS ---
+
+== PRE-BAKED + PREDICTIVE GRAPHICS ==
+
+A) PostProcessVolume Baking
+   Bloom, DoF, LUTs, vignette, exposure = baked numeric params
+   Cost: ~0ms (fixed lookup) vs realtime ~8-10ms
+
+B) Reflection Capture Baking
+   Sphere + Box captures = static cubemaps baked once
+   Runtime: ~0.05ms vs Lumen RT ~1ms
+
+C) LUT Textures
+   256x16 RGBA, pre-baked color grading, zero compute
+
+D) FULL BAKED TIER = ~0.27ms total vs ~10ms realtime
+   WaveDataTable + SimBase.mp4 + CurveAtlas
+   + PPV preset + ReflectionCapture cubemaps + LUT + MaterialLayerStack
+
+E) Hardware-Decoded AV1 Video Baking
+   MRQ path-traced -> NVEnc AV1 lossless 4K 120fps
+   Runtime: 0.3ms via 890M AV1 chip
+   Solver rebakes -> MRQ re-renders 30s -> MediaTexture swaps live, runtime never notices
+
+F) HBLVR: Hybrid Baked-Live Render
+   Frame budget: 3.57ms total, 60% headroom on 8.33ms (120fps)
+
+G) Nanite baked at cook time - cannot change at runtime
+   Use pre-Nanite mesh for runtime-mutable geometry
+
+== CURVE ATLAS / CURVES AS UNIVERSAL PRIMITIVE ==
+
+UCurveLinearColorAtlas packs curves as GPU texture rows
+One 4-row atlas: WaveProfile + FresnelRamp + LODFalloff + EmissivePulse
+= ONE texture, ONE sample call, ~0.02ms total
+
+One curve simultaneously drives:
+  - UE5 UCurveFloat (edit visually, no recompile)
+  - GPU 1D texture in material
+  - JSON round-trip
+  - numpy solver (offline)
+  - MPC live scalars (realtime)
+  - MRQ video bake
+
+All 8 named curves: WaveProfile, FresnelRamp, LODFalloff, InputAccel,
+VolumeDensity, GradientPalette, TensionSpring, CameraDolly
+
+== GEOLOCATION / GPS COORDINATES ==
+
+GPS-perfect sphere trick:
+  Triplanar UVs -> spherical -> deterministic (lat, lon) per pixel
+  Sample 1K equirectangular LUT keyed to real GPS data
+  = globe at ZERO CPU cost (pure GPU texture sample)
+  LUT encodes: elevation, climate, biome, terrain type
+
+Cesium Real-World Geospatial plugin for streaming real terrain + imagery
+One EXR plate replaceable with live 4K video = animated triplanar globe
+
+== JSON SCHEMA + PRELOADED DATA ==
+
+JSON = canonical wire format for entire pipeline (not just storage)
+Spans: numpy, UE DataTable, MPC, WebSocket, USD, GLTF, ONNX, AR/VR config
+
+Master schema: C:/Users/joeyw/Desktop/BlurFocus_MetaSchema.json
+  - Asset identity, 4K EXR, HDR projection, cube-sphere mesh, material contracts
+
+DataTable system:
+  - DT_OmniSphere.csv (source of truth in Content/)
+  - FOMNI_SphereInstance USTRUCT(BlueprintType)
+  - BPM_BuildOmniSphere macro: one node = fully-configured sphere
+  - Fixes DataTable popup permanently
+
+Key preloaded assets:
+  6 UCurveFloat assets       ~80 KB
+  Curve Atlas texture        ~50 KB
+  Nanite sphere mesh         ~12 MB
+  Material assets            ~200 KB
+  DT_OmniSphere (3600fr)    ~500 KB
+  sim_base_video_30s AV1    ~60 MB
+  52 Python scripts          ~600 KB
+  Blueprints + widgets       ~2 MB
+  TOTAL PLUGIN ZIP:          ~75 MB
+  (vs Steam game avg = ~30 GB)
+
+== PHYSICS ==
+
+Wave Physics:
+  numpy 2D wave solver -> JSON per frame -> ASimSphereActor::Tick() -> MPC push
+  GPU handles all per-vertex math via WPO
+  Params: Amplitude, Frequency, WaveTime, Damping, ImpactX/Y, ImpactStrength
+
+Ball physics:
+  Cheap soft-body illusion (rigid + wave deformation, no Chaos)
+  Magnus effect via TensionSpring.curve
+  Hawkeye Replay via baked physics + AV1 decode
+
+ML Deformer:
+  NNM_SplineDeformer NearestNeighborModel
+  XDNA2 NPU acceleration
+  UseSplineDeform=True, SplineStrength=300, SplineFrequency=2
+
+Heterogeneous Volumes (SVT) for clouds/smoke/fire
+
+== MATERIAL SYSTEM ==
+
+Substrate Slab BSDF (M_MetaProjection):
+  F0 = MetaP0 (0.04, 0.04, 0.04) = near-zero normal reflectance
+  F90 = MetaP90 (0.0, 0.85, 1.0) = cyan rim at grazing
+  Fresnel = Schlick via PixelNormalWS + CameraVectorWS
+  Emissive = RT_blend x EmissiveScale x lerp(1, 1-fresnel, MetaFresnelEmissiveBias)
+  Opacity = lerp(0.05, 1.0, fresnel_term)
+  PixelDepthOffset = FresnelWeight x MetaDepthBias x depth
+
+Live C++ push: PushFresnelParams() -> MID params every tick
+Full scene = ONE unified material volume (glow/fog/post-process/F0-F90/gradients)
+
+Triplanar Projection:
+  Lerp(A, B, sin(MetaOrbitAngle * 0.01745)) = tri-blend
+  RT faces: RT_Front4K, RT_Side4K, RT_Top4K (4096 HDR16 transient)
+
+== MASTER BLUEPRINT PATTERN ==
+
+BP_BlurFocusGame (SubobjectDataSubsystem):
+  Child: SimSphereActor
+  Child: CineCameraActor
+  Child: StaticMeshActor
+  Child: SphereReflectionCapture
+  Child: PostProcessVolume
+
+Python enum switch = Tennis -> Rocket -> Golf scene transition
+
+== PIPELINE ==
+
+Ingest: photo/FBX/SLDPRT/prompt -> detect -> import -> M_SimSphere -> spawn
+  FBX: ~30s | AI image-to-3D: ~2min
+
+Package: UAT BuildCookRun -Shipping -> dist/SPIN_v{N}.exe (~10-15 min)
+
+BLAST.py (37 CVars): TSR, Lumen, MegaLights, VSM, Nanite, TSR 200%
+
+Fast path: 99% of iterations <100ms via MCP
+
+== KEY FILE LOCATIONS ==
+
+Project:    C:/Users/joeyw/Desktop/BlurFocus/
+PRD:        BlurFocusSim_PRD.html (225 KB)
+Editor app: BlurFocusSim_Editor.html (65 KB)
+Markdown:   BLURFOCUS_SIM_STACK.md (30 KB)
+Schema:     BlurFocus_MetaSchema.json
+Scripts:    Content/Python/ (52 scripts)
+Notion:     https://www.notion.so/9b2e1a2789b34c4ead81d058d4393560
+
+==============================================================
+PART 3: CLAUDE MEMORY UPDATES (THIS SESSION)
+==============================================================
+
+Entry #6 (added): SPIN May 13 insights - 4 core SPIN game insights
+Entry #7 (added): BlurFocus performance - pre-baked graphics, curve atlas, AV1
+Entry #8 (added): BlurFocus geospatial - GPS sphere, Cesium, lat/lon LUT
+Entry #9 (added): BlurFocus JSON schema - wire format, DataTable, master schema
+
+==============================================================
+PART 4: FILES SAVED THIS SESSION
+==============================================================
+
+Desktop:
+  Claude_Session_Export_May14_2026.txt       (session 1 export)
+  BlurFocus_DeepInsights_May14_2026.txt      (deep technical insights)
+  Claude_Session_Export_May14_2026_FULL.txt  (this file - full export)
+
+OneNote extracted to:
+  C:/Users/joeyw/AppData/Local/Temp/onenote_extract.txt (4412 lines)
+
+GitHub: push attempted to jdot274/spin-roadmap (auth error)
+Notion: MCP auth needed (reconnect Microsoft 365 or Notion directly)
+
+==============================================================
+END OF FULL EXPORT
+==============================================================

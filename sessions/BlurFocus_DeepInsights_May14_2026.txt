@@ -1,0 +1,258 @@
+BLURFOCUS / SPIN DEEP INSIGHTS - May 13-14, 2026
+Extracted from OneNote by Claude
+==============================================================
+
+== 1. PRE-BAKED + PREDICTIVE GRAPHICS ==
+
+CORE INSIGHT: Pre-solve the answer once, play it back free.
+Same principle as video baking - bake the hard math offline, runtime is zero cost.
+
+a) PostProcessVolume Baking
+   - Bloom, DoF, tone curve, LUTs, vignette, chromatic aberration, motion blur, exposure
+   - All just numeric params baked into the level
+   - Cost: ~0ms to evaluate per frame (fixed lookup)
+   - vs realtime equivalent: ~8-10ms
+
+b) Reflection Capture Baking
+   - Sphere + Box captures generate static cubemaps ONCE during bake
+   - Runtime cost: ~0.05ms per frame to sample
+   - vs Lumen RT: ~1ms per frame
+
+c) LUT Textures
+   - 256x16 RGBA tiny textures that drive color grading
+   - Pre-baked, zero compute at runtime
+
+d) FULL BAKED TIER (total ~0.27ms vs ~10ms realtime):
+   WaveDataTable + SimBase.mp4 + CurveAtlas
+   + PPV preset + ReflectionCapture cubemaps + LUT textures + MaterialLayerStack
+
+e) Hardware-Decoded Video Baking
+   - MRQ path-traced render -> NVEnc AV1 lossless 4K 120fps
+   - Runtime playback: 0.3ms via 890M AV1 decode chip
+   - Solver rebakes wave path, MRQ re-renders 30s video, MediaTexture swaps live
+   - Runtime never even noticed
+
+f) HBLVR: Hybrid Baked-Live Render
+   - Baked tier for static/slow-changing data
+   - Live tier for dynamic/interactive data
+   - Frame budget: 3.57ms total, 60% headroom on 8.33ms target (120fps)
+
+g) Nanite is baked at cook time - cannot change at runtime
+   Must use pre-Nanite mesh for runtime-mutable geometry
+
+
+== 2. CURVE ATLAS / CURVES AS UNIVERSAL PRIMITIVE ==
+
+CORE INSIGHT: A curve is not just animation data - it is a continuous
+function that any system can sample simultaneously.
+
+UE5 implementation: UCurveLinearColorAtlas
+- Packs N curves as texture rows
+- Material samples them as 1D textures
+- Zero CPU cost, GPU branch-free
+
+One curve drives ALL of:
+  - UE5 UCurveFloat assets (visual edit, no recompile)
+  - GPU-sampled as 1D texture in material (~0.02ms total for 4 curves)
+  - JSON round-trip (edit in editor, export, re-import)
+  - numpy solver (offline wave simulation)
+  - MPC live scalars (realtime parameter channel)
+  - MRQ video bake (pre-render canonical answer)
+  - Hardware-decoded video playback (0.3ms)
+
+Example 4-row Curve Atlas in M_SimSphere:
+  Row 1: WaveProfile   -> WPO amplitude
+  Row 2: FresnelRamp   -> rim intensity
+  Row 3: LODFalloff    -> detail at distance
+  Row 4: EmissivePulse -> glow over time
+  = ONE 4-row texture, ONE sample call, ~0.02ms total
+
+Named curves in project:
+  WaveProfile.curve, FresnelRamp.curve, LODFalloff.curve,
+  InputAccel.curve, VolumeDensity.curve, GradientPalette.curve,
+  TensionSpring.curve, CameraDolly.curve
+
+
+== 3. GEOLOCATION / GPS COORDINATES ==
+
+CORE INSIGHT: GPS-perfect sphere trick
+Every point on the sphere gets a deterministic (lat, lon) coordinate.
+Sample a 1K equirectangular LUT keyed to real-world GPS data.
+Sphere becomes a literal globe at ZERO CPU cost.
+
+Implementation:
+  - Triplanar UVs -> convert to spherical -> (lat, lon) pair
+  - 1K equirectangular LUT texture = lookup table for GPS data
+  - LUT can encode: elevation, climate, biome, terrain type, anything
+  - No CPU math at runtime - pure GPU texture sample
+
+Integration: Cesium Real-World Geospatial plugin
+  - Streams real-world terrain and imagery
+  - Composable with BlurFocus sphere material system
+
+Use case: Sphere skin bulges where HDR is bright (same triplanar UVs)
+One of 3 EXR plates replaceable with live 4K video -> animated triplanar
+
+
+== 4. JSON SCHEMAS AND PRELOADED DATA ==
+
+CORE INSIGHT: JSON is the canonical wire format for the ENTIRE pipeline.
+Not just storage - it is the interchange format that makes
+offline-solve + live-playback + user-edit composable.
+
+JSON spans:
+  - numpy solver output (frame-by-frame state)
+  - UE DataTable (DT_OmniSphere.csv -> struct -> DataTable asset)
+  - MPC scalars (live parameter channel)
+  - Live deltas (WebSocket sliders)
+  - USD attributes
+  - GLTF export
+  - ONNX model configs
+  - AR/VR config
+
+Master JSON Schema (BlurFocus_MetaSchema.json):
+  Location: C:/Users/joeyw/Desktop/BlurFocus_MetaSchema.json
+  Contents:
+    - Asset identity
+    - 4K EXR inputs
+    - Live 4096 HDR projection
+    - Cube-sphere mesh
+    - Material contracts
+    - Pipeline metadata
+
+DataTable system:
+  - DT_OmniSphere.csv = source of truth (lives in Content/)
+  - FOMNI_SphereInstance = USTRUCT(BlueprintType) C++ struct
+  - BPM_BuildOmniSphere macro: pass row name, get fully-configured sphere
+  - Fixes the DataTable popup issue permanently
+
+Key preloaded data assets:
+  - 6 UCurveFloat assets (wave, fresnel, LOD, input, volume, gradient)
+  - 3 RT faces: RT_Front4K, RT_Side4K, RT_Top4K (4096 HDR16 transient)
+  - DT_OmniSphere DataTable (3600 frames baked sim data, ~500 KB)
+  - sim_base_video_30s (~60 MB AV1 encoded)
+  - python_scripts/52 scripts (~600 KB total)
+
+Total plugin footprint: ~75 MB
+  (vs iPhone 4K video 30s = ~150 MB, Steam game = ~30 GB)
+
+
+== 5. PHYSICS INSIGHTS ==
+
+a) Wave Physics
+   - Numpy 2D wave solver writes JSON state per frame (no UE dependency)
+   - C++ ASimSphereActor::Tick() pushes MPC params each frame:
+     Amplitude, Frequency, WaveTime, Damping, ImpactX, ImpactY, ImpactStrength
+   - GPU handles all per-vertex math via WPO (World Position Offset)
+   - Material custom node: input WorldPos + UV + MPC scalars -> WPO offset
+
+b) Ball Physics (SPIN)
+   - Cheap soft-body illusion: rigid collision + material wave deformation
+   - No Chaos soft-body needed
+   - Magnus effect: SPIN Charge-Release + 6DOF + Magnus effect curve
+   - Hawkeye Replay: baked physics trajectory (pre-solved, hardware decoded)
+
+c) ML Deformer
+   - NNM_SplineDeformer NearestNeighborModel
+   - Non-human/scripted-shape use is where ML Deformer gets interesting
+   - XDNA2 NPU acceleration
+   - UseSplineDeform=True, SplineStrength=300, SplineFrequency=2
+     -> every vertex ripples along sine path
+
+d) Spline WPO Deformation
+   - M_AAA_Master WPO chain: 6 spline scalars + UseSplineDeform static switch
+   - Sine-wave displacement wired to MP_WORLD_POSITION_OFFSET
+   - bUsedWithSplineMeshes=True so SplineMeshComponents work
+
+e) Heterogeneous Volumes
+   - SVT (Sparse Volume Texture) for clouds, smoke, fire
+   - r.Translucency.HeterogeneousVolumes CVar
+   - r.HeterogeneousVolumes.Shadows/Composition/IndirectLighting
+
+
+== 6. MATERIAL SYSTEM INSIGHTS ==
+
+a) Substrate Slab BSDF (M_MetaProjection)
+   - F0 MetaP0 vector param (0.04 grey) = near-zero normal-incidence reflectance
+   - F90 MetaP90 vector param (0.0, 0.85, 1.0) = cyan rim at grazing
+   - Fresnel_term = Schlick approx via PixelNormalWS + CameraVectorWS
+   - Emissive = RT_blend x EmissiveScale x lerp(1, 1-fresnel, MetaFresnelEmissiveBias)
+   - Content fades at grazing, replaced by rim glow
+   - Opacity = lerp(0.05, 1.0, fresnel_term) -> transparent front, opaque edge
+   - PixelDepthOffset = FresnelWeight x MetaDepthBias x depth
+     (pushes surface inward at edge, forward at center = simulates volume depth)
+
+b) Live C++ parameter push (tick-binding):
+   PushFresnelParams() feeds all params into MID every tick
+   Params: MetaFresnelEmissiveBias, MetaRimRoughness, MetaEmissiveScale
+
+c) Runtime Virtual Texture
+   - RVT is landscape-only (NOT RT-compatible - confirmed via research)
+   - Direct RT material path is correct approach
+   - Assign URuntimeVirtualTexture asset to enable VT streaming for landscape
+
+d) Triplanar Projection (M_MetaProjection):
+   Lerp(A, B, sin(MetaOrbitAngle * 0.01745)) -> tri-blend with top
+   Three RT samples: Front, Side, Top with per-pixel Schlick
+
+
+== 7. MASTER BLUEPRINT PATTERN ==
+
+CORE INSIGHT: One parent BP wires everything together
+(how Epic ships FirstPersonTemplate, ThirdPersonTemplate)
+
+BP_BlurFocusGame built via SubobjectDataSubsystem:
+  - SimSphereActor (child)
+  - CineCameraActor (child)
+  - StaticMeshActor (child)
+  - SphereReflectionCapture (child)
+  - PostProcessVolume (child)
+
+Python runtime switch: change one enum, change one mesh reference
+= full scene transition Tennis -> Rocket -> Golf
+
+
+== 8. PIPELINE ARCHITECTURE ==
+
+HBLVR Pipeline (Hybrid Baked-Live Render):
+  Input: photo / FBX / SLDPRT / text prompt
+  -> detect type
+  -> import to BlurFocus
+  -> apply M_SimSphere
+  -> spawn as SPIN actor
+  Time: ~30s for FBX, ~2min for AI image-to-3D
+
+Package pipeline:
+  -> UAT BuildCookRun -platform=Win64 -clientconfig=Shipping
+  -> dist/SPIN_v{N}.exe (standalone, no editor needed)
+  Time: ~10-15 min
+
+CI/CD: Phase-gated pipeline
+  - MCP fast path: 99% of dev iterations <100ms
+  - Live Coding: <30s for C++ changes
+  - UBT full rebuild: 10-60 min (only when DLL changes)
+
+Key CVars (BLAST.py - 37 CVars):
+  r.TSR.History.SampleCount, r.MaxAnisotropy=16
+  r.Lumen.Reflections.SmoothBias=0
+  r.MegaLights.NumSamplesPerPixel=2
+  r.MegaLights.ShadowType=2, r.MegaLights.Denoiser=1
+  r.Bloom.HalfResolutionFFT=0
+  r.Streaming.MipBias=-1, r.Material.RoughDiffuse=1
+
+
+== 9. KEY FILE LOCATIONS ==
+
+BlurFocus project: C:/Users/joeyw/Desktop/BlurFocus/
+Key files:
+  BlurFocusSim_PRD.html        225 KB (full spec doc)
+  BlurFocusSim_Editor.html      65 KB (UEFN-style app)
+  BLURFOCUS_SIM_STACK.md        30 KB (markdown twin)
+  BlurFocus_MetaSchema.json     (master JSON schema)
+  Content/Python/ (52 scripts)
+  Notion: BlurFocusSim Kanban
+    https://www.notion.so/9b2e1a2789b34c4ead81d058d4393560
+
+==============================================================
+END OF INSIGHTS
+==============================================================
